@@ -1,0 +1,84 @@
+sig Market{
+dispensers: some TicketDispenser,
+cashDesks: some CashDesk,
+manager: one StoreManager,
+departments: set Department,
+ticketManager: one TicketSystem
+}
+
+sig TicketSystem{
+insideMarket: set Ticket,
+line: set Ticket,
+pastTickets: set Ticket
+}{
+#(insideMarket & line)=0
+#(insideMarket & pastTickets)=0
+#(line & pastTickets)=0
+}
+
+sig TicketDispenser{
+distributedTickets: set PhysicalTicket
+}
+
+sig QRCode{}
+
+sig QRCodeReader{
+scanned: set QRCodeReader
+}
+
+sig CashDesk{
+reader: one QRCodeReader
+}
+
+abstract sig Person{}
+
+sig StoreManager extends Person{}
+
+abstract sig User extends Person{}
+sig VirtualUser extends User{}
+sig PhysicalUser extends User{}
+
+abstract sig Ticket{}
+sig PhysicalTicket extends Ticket{}
+sig VirtualTicket extends Ticket{}
+sig Visit extends Ticket{}
+
+sig Item{}
+
+sig Category{
+products: some Item
+}
+
+sig Department{
+categories: some Category
+}
+
+sig SmartDevice{
+localizationDevice: lone GPS
+}
+
+sig GPS{}
+
+//////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////FACTS//////////////////////////////////////
+
+//no same Ticket in two different markets' TicketSystem, in any of the states (inside, past, in line)
+fact {
+no disj ts1,ts2: TicketSystem |
+	 #( ( ts1.insideMarket + ts1.line + ts1.pastTickets ) & ( ts2.insideMarket + ts2.line + ts2.pastTickets ) ) != 0
+}
+
+//no same dispenser/cash desks/departments/ticketManager for disjoint markets
+fact {
+no disj m1,m2: Market |
+	 #(m1.dispensers & m2. dispensers + m1.cashDesks & m2.cashDesks +
+		 m1.departments & m2.departments + m1.ticketManager & m2.ticketManager) != 0
+}
+
+//no item in two disjoint categories
+fact {
+no disj c1,c2: Category |
+	 #(c1.products & c2.products) != 0
+}
+
+

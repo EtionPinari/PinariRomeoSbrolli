@@ -18,12 +18,16 @@ insideMarket: set Ticket,
 line: set Ticket,
 pastTickets: set Ticket,
 currentTimeSlot: one TimeSlot,
-currentDate: one Date
+currentDate: one Date,
+availableSlots: Date -> TimeSlot
 }{ //no ticket is in more different states at the same time
 #(insideMarket & line)=0
 #(insideMarket & pastTickets)=0
 #(line & pastTickets)=0
+//all tickets insideMarket are tickets booked for the current Date and Time Slot
 all t: Ticket | t in insideMarket implies (t.ticketDate = currentDate and t.ticketTimeSlot = currentTimeSlot)
+//Available Dates and Time Slots are the ones for which the number of tickets is less than the max number admitted to grant safety
+all d:Date, ts:TimeSlot | (d->ts) in availableSlots iff #((insideMarket + line) &  ticketDate.d & ticketTimeSlot.ts) < maxUsersPerSlot
 }
 
 sig TicketDispenser{
@@ -44,11 +48,17 @@ abstract sig Person{}
 
 sig StoreManager extends Person{}
 
+abstract sig SafetyStatus{}
+one sig Safe extends SafetyStatus{}
+one sig UnSafe extends SafetyStatus{}
+
 abstract sig User extends Person{
+userStatus: one SafetyStatus
 }
 sig VirtualUser extends User{
 userVTickets: set VirtualTicket,
-userVisits: set Visit
+userVisits: set Visit,
+userDevice: some SmartDevice
 }
 
 sig PhysicalUser extends User{
@@ -97,12 +107,6 @@ fact {
 no disj m1,m2: Market |
 	 #(m1.dispensers & m2. dispensers + m1.cashDesks & m2.cashDesks +
 		 m1.departments & m2.departments + m1.ticketManager & m2.ticketManager) != 0
-}
-
-//no item in two disjoint categories
-fact {
-no disj c1,c2: Category |
-	 #(c1.products & c2.products) != 0
 }
 
 //each ticket has a different QRCode
@@ -173,9 +177,30 @@ fact{
 all cd: CashDesk | #(cashDesks.cd) = 1
 }
 
+//each department is associated to one market
+fact{
+all d: Department | #(departments.d) = 1
+}
+
+
+//each category is associated to at least one Department
+fact{
+all c: Category | #(categories.c) >= 1
+}
+
+//each item is associated to one category
+fact{
+all i: Item | #(products.i) = 1
+}
+
 //each GPS is associated to a SmartDevice
 fact {
 all g: GPS | #(localizationDevice.g) =1 
+}
+
+//each SmartDevice is associated to a Virtual User
+fact {
+all sd: SmartDevice | #(userDevice.sd) =1 
 }
 
 //each ticket of any type belongs to a correct type of user
@@ -191,9 +216,22 @@ all pt: PhysicalTicket | one d: TicketDispenser | pt in d.distributedTickets and
 }
 
 
+//definition of user safety
+fact{
+all vu: VirtualUser | vu.userStatus = Safe iff 
+				( no t: Ticket, ts: TicketSystem  | t != none and t in (vu.userVTickets + vu.userVisits) and
+					 t in ts.insideMarket and #(ts.insideMarket) > ts.maxUsersPerSlot )
+all pu: PhysicalUser | pu.userStatus = Safe iff 
+				( no t: Ticket, ts: TicketSystem  | t != none and t in pu.userPTickets and
+					 t in ts.insideMarket and #(ts.insideMarket) > ts.maxUsersPerSlot )
+}
+
+assert allUsersInsideStoresAreSafe{
+all u: User | u.userStatus= Safe
+}
 
 pred show{}
 
-
-run show for 10 but 0 Department, 0 Item, 0 SmartDevice,1 CashDesk,3 TicketDispenser, 3 QRCodeReader,0 Visit
+check allUsersInsideStoresAreSafe for 5
+run show for 7 but 1 TicketDispenser, 1 CashDesk, 1 Category, 1 Item, 1 Department, 1 SmartDevice, 3 QRCodeReader, 1 StoreManager
 

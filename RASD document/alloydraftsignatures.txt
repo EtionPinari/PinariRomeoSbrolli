@@ -1,19 +1,29 @@
 sig Market{
 dispensers: some TicketDispenser,
 cashDesks: some CashDesk,
+entrances: some QRCodeReader,
+freeExit: some QRCodeReader,
 manager: one StoreManager,
 departments: set Department,
-ticketManager: one TicketSystem
+ticketManager : one TicketSystem
+}{
+freeExit & entrances  = none
+freeExit & cashDesks.reader = none
+entrances & cashDesks.reader = none
 }
 
 sig TicketSystem{
+maxUsersPerSlot: one Int,
 insideMarket: set Ticket,
 line: set Ticket,
-pastTickets: set Ticket
-}{
+pastTickets: set Ticket,
+currentTimeSlot: one TimeSlot,
+currentDate: one Date
+}{ //no ticket is in more different states at the same time
 #(insideMarket & line)=0
 #(insideMarket & pastTickets)=0
 #(line & pastTickets)=0
+all t: Ticket | t in insideMarket implies (t.ticketDate = currentDate and t.ticketTimeSlot = currentTimeSlot)
 }
 
 sig TicketDispenser{
@@ -23,7 +33,7 @@ distributedTickets: set PhysicalTicket
 sig QRCode{}
 
 sig QRCodeReader{
-scanned: set QRCodeReader
+scanned: set QRCode
 }
 
 sig CashDesk{
@@ -34,11 +44,20 @@ abstract sig Person{}
 
 sig StoreManager extends Person{}
 
-abstract sig User extends Person{}
+abstract sig User extends Person{
+userTickets: set Ticket
+}
 sig VirtualUser extends User{}
 sig PhysicalUser extends User{}
 
-abstract sig Ticket{}
+sig Date{}
+sig TimeSlot{}
+
+abstract sig Ticket{
+ticketDate: one Date,
+ticketTimeSlot: one TimeSlot,
+ticketCode: one QRCode
+}
 sig PhysicalTicket extends Ticket{}
 sig VirtualTicket extends Ticket{}
 sig Visit extends Ticket{}
@@ -81,4 +100,81 @@ no disj c1,c2: Category |
 	 #(c1.products & c2.products) != 0
 }
 
+//each ticket has a different QRCode
+fact {
+no disj t1,t2: Ticket |
+	 #(t1.ticketCode & t2.ticketCode)!= 0
+}
+
+
+//each Device has a different GPS device
+fact {
+all disj d1,d2: SmartDevice |
+	(d1.localizationDevice != none and d2.localizationDevice != none) implies d1.localizationDevice != d2.localizationDevice
+}
+
+//No market gives more tickets per time slot than the max allowed by the shop manager
+fact{
+all m: Market, d: Date, t: TimeSlot | 
+	let marketTickets= m.ticketManager.insideMarket + m.ticketManager.line + m.ticketManager.pastTickets |
+		#(marketTickets & ticketDate.d & ticketTimeSlot.t) <= m.ticketManager.maxUsersPerSlot
+}
+
+//each ticket system is associated to one and only one market
+fact{
+all t: TicketSystem | 
+	#(ticketManager.t) = 1
+}
+
+
+//each ticket can be scanned at most 2 times: 2 times is a past ticket that has entered and exited, 1 time is only entered, 0 times is in line
+
+fact {
+all t:Ticket | 
+	let qrReaders = scanned.(t.ticketCode) | 
+	#qrReaders <= 2  and
+	(#qrReaders = 2  iff one ts: TicketSystem | t in ts.pastTickets and #(qrReaders & (ticketManager.ts).entrances) = 1 and
+				#(qrReaders & ((ticketManager.ts).freeExit + (ticketManager.ts).cashDesks.reader)) = 1) and
+
+		(#qrReaders = 1  iff one ts: TicketSystem | t in ts.insideMarket and #(qrReaders & (ticketManager.ts).entrances) = 1 ) and
+
+	 (#qrReaders = 0  iff one ts: TicketSystem | t in ts.line)
+	
+}
+
+//different markets have no same QRcodeReader
+fact{
+all disj m1,m2: Market |  (m1.freeExit + m1.entrances + m1.cashDesks.reader) & (m2.freeExit + m2.entrances + m2.cashDesks.reader) = none
+}
+
+//eachQRCodeReader is associated to a desk, an entrance or an exit
+fact {
+all qr: QRCodeReader | #(freeExit.qr + entrances.qr + reader.qr) = 1
+}
+
+
+//each QRCode is associated to one ticket
+fact{
+all c: QRCode | #(ticketCode.c) = 1 
+}
+
+//each ticket dispenser is associated to one market
+fact{
+all td: TicketDispenser | #(dispensers.td) = 1
+}
+
+//each cashDesk is associated to one market
+fact{
+all cd: CashDesk | #(cashDesks.cd) = 1
+}
+
+//each GPS is associated to a SmartDevice
+fact {
+all g: GPS | #(localizationDevice.g) =1 
+}
+
+pred show{}
+
+
+run show for 10 but 0 Department, 0 Item, 0 SmartDevice,1 CashDesk,1 TicketDispenser, 3 QRCodeReader
 

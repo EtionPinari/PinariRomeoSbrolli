@@ -26,8 +26,10 @@ availableSlots: Date -> TimeSlot
 #(line & pastTickets)=0
 //all tickets insideMarket are tickets booked for the current Date and Time Slot
 all t: Ticket | t in insideMarket implies (t.ticketDate = currentDate and t.ticketTimeSlot = currentTimeSlot)
-//Available Dates and Time Slots are the ones for which the number of tickets is less than the max number admitted to grant safety
-all d:Date, ts:TimeSlot | (d->ts) in availableSlots iff #((insideMarket + line) &  ticketDate.d & ticketTimeSlot.ts) < maxUsersPerSlot
+//Available Dates and Time Slots are the ones for which the number of tickets is less than the max number admitted to grant safety and that
+// are not  Dates or Slots different from the current for which there are past tickets (No available Slots in past dates)
+all d:Date, ts:TimeSlot | (d->ts) in availableSlots iff (#((insideMarket + line) &  ticketDate.d & ticketTimeSlot.ts) < maxUsersPerSlot and 
+											no t: Ticket | t in pastTickets and (t.ticketDate != currentDate and d=t.ticketDate or t.ticketTimeSlot != currentTimeSlot and d=t.ticketDate and ts=t.ticketTimeSlot  ))
 }
 
 sig TicketDispenser{
@@ -93,13 +95,29 @@ localizationDevice: lone GPS
 
 sig GPS{}
 
+
+///////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  /USEFUL FUNCTIONS///////////////////////////////////
+
+fun scannedBy[t: Ticket] : set QRCodeReader {
+ scanned.(t.ticketCode)
+}
+
+fun getAllTickets[ts: TicketSystem] : set Ticket {
+ ts.insideMarket + ts.line + ts.pastTickets
+}
+
+fun getTicketManager[t: Ticket] : one TicketSystem{
+(line + insideMarket + pastTickets).t
+}
+
 //////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////FACTS//////////////////////////////////////
 
 //no same Ticket in two different markets' TicketSystem, in any of the states (inside, past, in line)
 fact {
 no disj ts1,ts2: TicketSystem |
-	 #( ( ts1.insideMarket + ts1.line + ts1.pastTickets ) & ( ts2.insideMarket + ts2.line + ts2.pastTickets ) ) != 0
+	 #( getAllTickets[ts1] & getAllTickets[ts2]) != 0
 }
 
 //no same dispenser/cash desks/departments/ticketManager for disjoint markets
@@ -140,15 +158,16 @@ all t: TicketSystem |
 
 fact {
 all t:Ticket | 
-	let qrReaders = scanned.(t.ticketCode) | 
-	#qrReaders <= 2  and
-	(#qrReaders = 2  iff one ts: TicketSystem | t in ts.pastTickets and #(qrReaders & (ticketManager.ts).entrances) = 1 and
-				#(qrReaders & ((ticketManager.ts).freeExit + (ticketManager.ts).cashDesks.reader)) = 1) and
-
-		(#qrReaders = 1  iff one ts: TicketSystem | t in ts.insideMarket and #(qrReaders & (ticketManager.ts).entrances) = 1 ) and
-
-	 (#qrReaders = 0  iff one ts: TicketSystem | t in ts.line)
-	
+	#scannedBy[t] <= 2  and
+	//ticket is past if it has been scanned 2 times, one at entrance and one at exit
+	( (#scannedBy[t]  = 2 ) implies ( let ts = getTicketManager[t] | t in ts.pastTickets and #(scannedBy[t]  & (ticketManager.ts).entrances) = 1 and #(scannedBy[t]  & ((ticketManager.ts).freeExit + (ticketManager.ts).cashDesks.reader)) = 1)) and
+	//ticket is inside if it has been scanned 1 time at entrance
+	(#scannedBy[t]  = 1  iff let ts =  getTicketManager[t] | t in ts.insideMarket and #(scannedBy[t]  & (ticketManager.ts).entrances) = 1 ) and
+	//ticket is in line if it has been scanned 0 times and it is not referring to a past Date, it the latter is true then the ticket is past (ticket invalidated because of user not presenting)
+	( #scannedBy[t]  = 0 implies ( (no t1: Ticket | t1 != t and getTicketManager[t1] = getTicketManager[t]  and t1 in getTicketManager[t1].pastTickets and 
+										(t1.ticketDate != getTicketManager[t1].currentDate and t.ticketDate = t1.ticketDate or 
+											t1.ticketTimeSlot != getTicketManager[t1].currentTimeSlot  and t.ticketDate = t1.ticketDate and t.ticketTimeSlot=t1.ticketTimeSlot )) implies
+																										 t in getTicketManager[t].line else t in  getTicketManager[t].pastTickets))
 }
 
 //different markets have no same QRcodeReader
@@ -183,9 +202,9 @@ all d: Department | #(departments.d) = 1
 }
 
 
-//each category is associated to at least one Department
+//each category is associated to a Department in each Market
 fact{
-all c: Category | #(categories.c) >= 1
+all disj d1,d2: Department | departments.d1 = departments.d2 implies no c: Category | c in d1.categories and c in d2.categories
 }
 
 //each item is associated to one category
@@ -226,12 +245,22 @@ all pu: PhysicalUser | pu.userStatus = Safe iff
 					 t in ts.insideMarket and #(ts.insideMarket) > ts.maxUsersPerSlot )
 }
 
+//Goal G3
 assert allUsersInsideStoresAreSafe{
 all u: User | u.userStatus= Safe
 }
 
+//User cannot shop whitout having registered their entrance
+assert  noExitWithoutEntering{
+//TODO
+}
+
+
+
 pred show{}
 
 check allUsersInsideStoresAreSafe for 5
-run show for 7 but 1 TicketDispenser, 1 CashDesk, 1 Category, 1 Item, 1 Department, 1 SmartDevice, 3 QRCodeReader, 1 StoreManager
-
+run show for 10 but 1 TicketDispenser,1 Category, 1 Item,1 SmartDevice,1 CashDesk, 3 QRCodeReader
+run {#pastTickets = 3 
+#scanned=5
+}  for 7 but 1 TicketDispenser,1 Category, 1 Item,1 SmartDevice,1 CashDesk, 3 QRCodeReader, exactly 2 Date,2 TimeSlot

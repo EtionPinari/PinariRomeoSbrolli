@@ -1,9 +1,9 @@
 sig Market{
 dispensers: some TicketDispenser,
 cashDesks: some CashDesk,
-entrances: some QRCodeReader,
-freeExit: some QRCodeReader,
-manager: one StoreManager,
+entrances: some QRCodeReader, //Representing the entrance of the market, with turnstiles and relative QRCode reader
+freeExit: some QRCodeReader,	//Representing the exit for users that did decide to not buy or that did not find what they wanted
+manager: one StoreManager,	
 departments: set Department,
 ticketManager : one TicketSystem
 }{
@@ -30,6 +30,7 @@ all t: Ticket | t in insideMarket implies (t.ticketDate = currentDate and t.tick
 // are not  Dates or Slots different from the current for which there are past tickets (No available Slots in past dates)
 all d:Date, ts:TimeSlot | (d->ts) in availableSlots iff (#((insideMarket + line) &  ticketDate.d & ticketTimeSlot.ts) < maxUsersPerSlot and 
 											no t: Ticket | t in pastTickets and (t.ticketDate != currentDate and d=t.ticketDate or t.ticketTimeSlot != currentTimeSlot and d=t.ticketDate and ts=t.ticketTimeSlot  ))
+maxUsersPerSlot > 0
 }
 
 sig TicketDispenser{
@@ -77,7 +78,10 @@ ticketCode: one QRCode
 }
 sig PhysicalTicket extends Ticket{}
 sig VirtualTicket extends Ticket{}
-sig Visit extends Ticket{}
+sig Visit extends Ticket{
+shoppingListCategories : set Category,
+shoppingListItems : set Item
+}
 
 sig Item{}
 
@@ -97,7 +101,7 @@ sig GPS{}
 
 
 ///////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////  /USEFUL FUNCTIONS///////////////////////////////////
+/////////////////////////////////////UTILITIES////////////////////////////////////////
 
 fun scannedBy[t: Ticket] : set QRCodeReader {
  scanned.(t.ticketCode)
@@ -107,9 +111,34 @@ fun getAllTickets[ts: TicketSystem] : set Ticket {
  ts.insideMarket + ts.line + ts.pastTickets
 }
 
+fun getVUserTicketsAndVisits[u: VirtualUser] : set Ticket {
+u.(userVTickets + userVisits)
+}
+
 fun getTicketManager[t: Ticket] : one TicketSystem{
 (line + insideMarket + pastTickets).t
 }
+
+
+pred checkEqualStateMarketPlusNewTicket[t: Ticket, m,m1 : Market]{
+m1.ticketManager.(pastTickets + insideMarket) = m.ticketManager.(pastTickets + insideMarket)  and 
+m1.ticketManager.line= m.ticketManager.line + t and
+m1.dispensers=m.dispensers and m1.cashDesks=m.cashDesks and m1.entrances=m.entrances and 
+m1.freeExit=m.freeExit and m1.manager=m.manager and m1.departments=m.departments
+}
+
+pred checkEqualStateVUserPlusNewTicket[t: VirtualTicket, u,u1: VirtualUser]{
+u1.userVTickets=u.userVTickets + t and u1.userVisits = u.userVisits and u1.userDevice = u.userDevice
+}
+
+pred checkEqualStateVUserPlusNewVisit[v: Visit, u,u1: VirtualUser]{
+u1.userVTickets=u.userVTickets  and u1.userVisits = u.userVisits + v and u1.userDevice = u.userDevice
+}
+
+pred checkEqualStatePUserPlusNewTicket[t: PhysicalTicket, u,u1: PhysicalUser]{
+u1.userPTickets=u.userPTickets + t
+}
+
 
 //////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////FACTS//////////////////////////////////////
@@ -143,7 +172,7 @@ all disj d1,d2: SmartDevice |
 //No market gives more tickets per time slot than the max allowed by the shop manager
 fact{
 all m: Market, d: Date, t: TimeSlot | 
-	let marketTickets= m.ticketManager.insideMarket + m.ticketManager.line + m.ticketManager.pastTickets |
+	let marketTickets=  getAllTickets[m.ticketManager] |
 		#(marketTickets & ticketDate.d & ticketTimeSlot.t) <= m.ticketManager.maxUsersPerSlot
 }
 
@@ -170,14 +199,14 @@ all t:Ticket |
 																										 t in getTicketManager[t].line else t in  getTicketManager[t].pastTickets))
 }
 
-//different markets have no same QRcodeReader
-fact{
-all disj m1,m2: Market |  (m1.freeExit + m1.entrances + m1.cashDesks.reader) & (m2.freeExit + m2.entrances + m2.cashDesks.reader) = none
-}
-
 //eachQRCodeReader is associated to a desk, an entrance or an exit
 fact {
 all qr: QRCodeReader | #(freeExit.qr + entrances.qr + reader.qr) = 1
+}
+
+//different markets have no same QRcodeReader
+fact{
+all disj m1,m2: Market |  (m1.freeExit + m1.entrances + m1.cashDesks.reader) & (m2.freeExit + m2.entrances + m2.cashDesks.reader) = none
 }
 
 
@@ -245,22 +274,50 @@ all pu: PhysicalUser | pu.userStatus = Safe iff
 					 t in ts.insideMarket and #(ts.insideMarket) > ts.maxUsersPerSlot )
 }
 
-//Goal G3
+///////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////GOALS AND PREDICATES///////////////////////////////////////////////	
+
+
+//G3. User inside stores are safe
 assert allUsersInsideStoresAreSafe{
 all u: User | u.userStatus= Safe
 }
 
-//User cannot shop whitout having registered their entrance
-assert  noExitWithoutEntering{
-//TODO
+//G5. If there are avavilable time slots in the current date, user can get a ticket and be put in line
+pred vUserGetsTicket[m,m1: Market, u,u1: VirtualUser]{
+some ts: TimeSlot | ts in m.ticketManager.currentDate.(m.ticketManager.availableSlots) and
+				some t: Ticket | t.ticketDate = m.ticketManager.currentDate and t.ticketTimeSlot = ts and 
+				t in m1.ticketManager.line and
+				checkEqualStateMarketPlusNewTicket[t, m,m1] and
+				checkEqualStateVUserPlusNewTicket[t, u,u1]
 }
 
+//G5. If there are available time slots in the current date, physical user can get a ticket from the dispenser
+pred pUserGetsTicket[m,m1: Market, u,u1: PhysicalUser]{
+some ts: TimeSlot | ts in m.ticketManager.currentDate.(m.ticketManager.availableSlots) and
+				some t: Ticket | t.ticketDate = m.ticketManager.currentDate and t.ticketTimeSlot = ts and 
+				t in m1.ticketManager.line and m1.dispensers.distributedTickets =m.dispensers.distributedTickets + t and
+				checkEqualStateMarketPlusNewTicket[t, m,m1] and
+				checkEqualStatePUserPlusNewTicket[t, u,u1]
+}
 
+//G6. If the selected date and time slot are available, virtual user can book a visit in that date and time slot
+pred vUserBooksVisit[m,m1: Market, u,u1: VirtualUser,ts: TimeSlot, d: Date]{
+ 	(d->ts) in m.ticketManager.availableSlots and 
+	some v: Visit | v.ticketDate = d and v.ticketTimeSlot = ts and 
+	checkEqualStateVUserPlusNewVisit[v,u,u1] and checkEqualStateMarketPlusNewTicket[v,m,m1]	
+}
 
+//User cannot shop whitout having registered their entrance scanning QRCode
+assert  noExitWithoutEntering{
+no t: Ticket | (one qrReader: QRCodeReader | t.ticketCode in qrReader.scanned and qrReader in (Market.freeExit + Market.cashDesks.reader)) and
+			no qrReader: QRCodeReader | t.ticketCode in qrReader.scanned and qrReader in Market.entrances
+}
+
+run vUserGetsTicket for 5
+run vUserBooksVisit for 5
+run pUserGetsTicket for 5
 pred show{}
 
 check allUsersInsideStoresAreSafe for 5
-run show for 10 but 1 TicketDispenser,1 Category, 1 Item,1 SmartDevice,1 CashDesk, 3 QRCodeReader
-run {#pastTickets = 3 
-#scanned=5
-}  for 7 but 1 TicketDispenser,1 Category, 1 Item,1 SmartDevice,1 CashDesk, 3 QRCodeReader, exactly 2 Date,2 TimeSlot
+run show for 10 

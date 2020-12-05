@@ -47,15 +47,13 @@ sig CashDesk{
 reader: one QRCodeReader
 }
 
-abstract sig Person{}
-
-sig StoreManager extends Person{}
+sig StoreManager{}
 
 abstract sig SafetyStatus{}
 one sig Safe extends SafetyStatus{}
 one sig UnSafe extends SafetyStatus{}
 
-abstract sig User extends Person{
+abstract sig User {
 userStatus: one SafetyStatus
 }
 sig VirtualUser extends User{
@@ -243,6 +241,11 @@ fact{
 all td: TicketDispenser | #(dispensers.td) = 1
 }
 
+//each category is associated at least to one department
+fact{
+all c: Category | #categories.c >= 1
+}
+
 //each cashDesk is associated to one market
 fact{
 all cd: CashDesk | #(cashDesks.cd) = 1
@@ -315,10 +318,21 @@ no t: Ticket | (one qrReader: QRCodeReader | t.ticketCode in qrReader.scanned an
 			no qrReader: QRCodeReader | t.ticketCode in qrReader.scanned and qrReader in Market.entrances
 }
 
+pred show{}
+
 run vUserGetsTicket for 5
 run vUserBooksVisit for 5
 run pUserGetsTicket for 5
-pred show{}
-
+check noExitWithoutEntering for 5
 check allUsersInsideStoresAreSafe for 5
-run show for 5 but exactly 1 Department,exactly 2 Category,exactly 1 Market,exactly 1 StoreManager,exactly 1 TicketDispenser,exactly 1 CashDesk,exactly 2 VirtualUser,exactly 1 PhysicalUser, exactly 4 Ticket
+run {
+#userVTickets= 2
+#userVisits = 2
+#userPTickets= 2
+#shoppingListItems = 2
+#userDevice = 2
+#entrances = 2
+#freeExit = 2
+all v: Visit, pt: PhysicalTicket | v.ticketTimeSlot != pt.ticketTimeSlot and v.ticketDate != pt.ticketDate
+all ts: TicketSystem | ts.maxUsersPerSlot > 4 and #ts.availableSlots =2
+} for 10 but exactly 2 Market,exactly 2 VirtualUser,exactly 2 PhysicalUser,exactly 1 Category,exactly 1 Item,exactly 1 StoreManager,exactly 2 Date, exactly 2 TicketDispenser, exactly 2 TimeSlot, exactly 2 CashDesk

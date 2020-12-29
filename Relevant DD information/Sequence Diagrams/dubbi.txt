@@ -1,8 +1,0 @@
-Reservation manager è stateful? perchè altrimenti alla creazione del ticket deve ricevere ancora tutte le cose necessarie (store,timeslot,user). Non è male anche stateless almeno 
-risponde a tutti e non resta busy, ma comunque ha senso che sia stateful anche.
-
-I timeslot a livello di db come sono gestiti? come si fa a sapere i timeslot disponibili (es. se ancora quel timeslot non ha nulla prenotato? c'è una tabella di timeslot che vengono 
-generati ogni tot dal timeslot manager in base ai suoi calcoli sulla grandezza dei timeslot (tipo quando l'optimizer ottimizza la durata dei timeslot tipo ogni due settimane/una settimana)? 
-
-Nel seq. diagram del ticket che senso ha che si chiede il primo available timeslot a QueueManager e poi lui semplicemente inoltra la richiesta e ri-inoltra la risposta?? o accede direttamente
-lui al DB senza passare per il Data Service oppure si chiede direttamente al data service? o c'è qualcosa che mi perdo?

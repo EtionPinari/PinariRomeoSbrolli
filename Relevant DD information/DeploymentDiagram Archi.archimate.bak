@@ -60,7 +60,7 @@
     <element xsi:type="archimate:SystemSoftware" name="Apache server  " id="d93916c0-1349-42dc-bb41-1058e658ef4d"/>
     <element xsi:type="archimate:Device" name="x86 server  " id="eb612a1a-d3b3-4730-8750-dad44754bb4d"/>
     <element xsi:type="archimate:SystemSoftware" name="Linux " id="14d38835-2c2e-43a0-99a9-3f812a86dbc8"/>
-    <element xsi:type="archimate:CommunicationNetwork" name="Load Balancer" id="36666f0f-77d3-43b2-b686-f5e873b26e0a"/>
+    <element xsi:type="archimate:CommunicationNetwork" name="Traefik Load Balancer" id="36666f0f-77d3-43b2-b686-f5e873b26e0a"/>
   </folder>
   <folder name="Motivation" id="e932be20-d853-445f-93e0-37a0146a6a27" type="motivation"/>
   <folder name="Implementation &amp; Migration" id="459e20e8-932b-4ad6-b4f3-e4f7be328a07" type="implementation_migration"/>

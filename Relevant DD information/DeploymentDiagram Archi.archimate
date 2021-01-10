@@ -61,6 +61,7 @@
     <element xsi:type="archimate:Device" name="x86 server  " id="eb612a1a-d3b3-4730-8750-dad44754bb4d"/>
     <element xsi:type="archimate:SystemSoftware" name="Linux " id="14d38835-2c2e-43a0-99a9-3f812a86dbc8"/>
     <element xsi:type="archimate:CommunicationNetwork" name="Traefik Load Balancer" id="36666f0f-77d3-43b2-b686-f5e873b26e0a"/>
+    <element xsi:type="archimate:Artifact" name="Artifact" id="6baadbee-e7a6-4f37-a9ca-1e30c7969f7f"/>
   </folder>
   <folder name="Motivation" id="e932be20-d853-445f-93e0-37a0146a6a27" type="motivation"/>
   <folder name="Implementation &amp; Migration" id="459e20e8-932b-4ad6-b4f3-e4f7be328a07" type="implementation_migration"/>
@@ -203,7 +204,7 @@
         <bounds x="1236" y="228" width="361" height="277"/>
         <sourceConnection xsi:type="archimate:Connection" id="82abd0b0-052f-48fd-a651-6ac86091c2bb" source="ae1fd78b-95ec-4a01-a81f-d1a564c5f36e" target="2a123349-c377-4fa7-8db5-51dc1a21d28e" archimateRelationship="aa1d3a44-aa95-464c-bdad-0d16b9d81f9a"/>
         <sourceConnection xsi:type="archimate:Connection" id="9526116d-58ce-4cc5-8e90-1f8bb0262c58" source="ae1fd78b-95ec-4a01-a81f-d1a564c5f36e" target="31860f4f-de97-404e-a756-3bae0967b32b" archimateRelationship="b3e48f75-8f42-4b85-8335-174f2f9631ea"/>
-        <child xsi:type="archimate:DiagramObject" id="2a123349-c377-4fa7-8db5-51dc1a21d28e" targetConnections="82abd0b0-052f-48fd-a651-6ac86091c2bb 68a9a172-4062-432e-a540-96abf434609b" archimateElement="267b473f-244a-4780-9457-91f810fc0041">
+        <child xsi:type="archimate:DiagramObject" id="2a123349-c377-4fa7-8db5-51dc1a21d28e" targetConnections="82abd0b0-052f-48fd-a651-6ac86091c2bb 68a9a172-4062-432e-a540-96abf434609b 5e132156-25c1-44c3-83f2-9de7451e7fd7" archimateElement="267b473f-244a-4780-9457-91f810fc0041">
           <bounds x="72" y="168" width="216" height="97"/>
           <sourceConnection xsi:type="archimate:Connection" id="f4feeb9d-300f-4dd6-abd8-44ef574bafe1" source="2a123349-c377-4fa7-8db5-51dc1a21d28e" target="cd7a125d-2031-4594-931e-29aaca76bacc" archimateRelationship="fab0569a-4e3d-43e6-97ca-fe9447908dbc"/>
           <sourceConnection xsi:type="archimate:Connection" id="a4a9d367-1619-43b7-9998-db01ab04e991" source="2a123349-c377-4fa7-8db5-51dc1a21d28e" target="f3a03e24-1e7d-4766-86c0-42bf555f0716" archimateRelationship="e5b4c242-777a-499c-802e-00924d7d7abc"/>
@@ -345,6 +346,11 @@
       <child xsi:type="archimate:DiagramObject" id="47cb35df-b7dd-4d87-80b7-e6b718b2f84b" targetConnections="3ae7251c-da0c-4628-a879-923c9a6fac9e ca7d8ede-b823-4959-bafa-4c757b2d43d9 f3b8521e-5326-457f-adb1-7286eb159d5b" archimateElement="812c26ce-d56f-49a5-be96-67a6cc47cab8">
         <bounds y="360" width="120" height="55"/>
         <sourceConnection xsi:type="archimate:Connection" id="2edf2fbe-3e93-46b1-a430-90aae5f01a21" source="47cb35df-b7dd-4d87-80b7-e6b718b2f84b" target="8220cec9-e3e4-4c6f-bc24-552e1b4ba1ab" archimateRelationship="04291ff4-486b-43cb-9175-17cf021b9110"/>
+      </child>
+      <child xsi:type="archimate:Note" id="e60815af-bdc6-410b-a932-080ea8c6f07e" textAlignment="1">
+        <bounds x="1260" y="534" width="289" height="80"/>
+        <sourceConnection id="5e132156-25c1-44c3-83f2-9de7451e7fd7" source="e60815af-bdc6-410b-a932-080ea8c6f07e" target="2a123349-c377-4fa7-8db5-51dc1a21d28e"/>
+        <content>This schema artifact has the sole scope of representing a high level view of the main entities to be saved in the database. Obviously there will be other tables such as relations between entities etc.</content>
       </child>
     </element>
   </folder>
